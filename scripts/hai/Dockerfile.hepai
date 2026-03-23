@@ -1,0 +1,29 @@
+FROM openclaw:local
+USER root
+
+RUN apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+  openssh-server sudo vim htop less procps \
+  net-tools iproute2 curl wget dnsutils \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Configure sshd: allow both password and pubkey auth
+RUN mkdir -p /run/sshd \
+  && sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config \
+  && sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config \
+  && ssh-keygen -A
+
+# Create openclaw command wrapper
+RUN echo '#!/bin/bash\nexec node /app/dist/index.js "$@"' > /usr/local/bin/openclaw \
+  && chmod +x /usr/local/bin/openclaw
+
+# Install pm2 globally for process management
+RUN npm install -g pm2
+
+# Copy utility scripts
+COPY scripts/hai/show_limits.sh /usr/local/bin/show_limits
+# COPY scripts/hai/entrypoint-multiuser.sh /usr/local/bin/entrypoint-multiuser.sh
+# RUN chmod +x /usr/local/bin/show_limits /usr/local/bin/entrypoint-multiuser.sh
+
+EXPOSE 22 18789 18790
+# ENTRYPOINT ["/usr/local/bin/entrypoint-multiuser.sh"]
